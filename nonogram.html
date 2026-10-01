@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Nonogram · demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#191423;color:#efe6f5;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+header{width:100%;max-width:560px;padding:14px 16px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:18px}.spacer{flex:1}
+.pill{background:#2a2036;border:1px solid #4a3a5e;border-radius:999px;padding:6px 14px;font-size:14px}
+#modeBtn{background:#7a5fa0;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+#newBtn{background:#3a2c50;color:#efe6f5;border:1px solid #4a3a5e;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+#wrap{padding:10px 16px;overflow:auto;max-width:100%}
+table{border-collapse:collapse;margin:0 auto}
+td{width:34px;height:34px;border:1px solid #4a3a5e;text-align:center;font-size:12px;color:#9d86b8;background:#221b2e;cursor:pointer;user-select:none}
+td.clue{background:#191423;cursor:default;color:#c9b3e6;font-weight:600}
+td.fill{background:#b678e8}
+td.mark{color:#5b4a72;font-size:18px}
+#win{position:fixed;inset:0;background:rgba(12,8,18,.88);display:none;align-items:center;justify-content:center;z-index:20}
+#win .box{background:#241b33;border:1px solid #7a5fa0;border-radius:16px;padding:36px 48px;text-align:center}
+#win .big{font-size:64px}
+#win button{background:#7a5fa0;color:#fff;border:none;border-radius:999px;padding:10px 30px;font-size:16px;cursor:pointer;margin-top:14px}
+footer{font-size:11px;color:#6f5b8a;padding:12px 16px 18px;text-align:center;max-width:560px}
+</style>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+</head>
+<body>
+<header>
+<div><h1>⬛ Nonogram</h1></div><div class="spacer"></div>
+<div class="pill">⏱ <span id="timer">00:00</span></div>
+<button id="modeBtn">✏️ 填格</button><button id="newBtn">↻ 重开</button>
+</header>
+<div id="wrap"><table id="grid"></table></div>
+<div id="win"><div class="box"><div class="big">❤️</div><h2>图案揭晓！</h2><p id="winInfo"></p><button onclick="newGame()">再来一局</button></div></div>
+<footer>管线：AI 生成像素画 → 下采样到网格 → 行列线索纯算法生成（确定性，无幻觉）。demo 为 10×10 爱心。</footer>
+<script>
+const SOL=[
+[0,1,1,0,0,0,0,1,1,0],
+[1,1,1,1,0,0,1,1,1,1],
+[1,1,1,1,1,1,1,1,1,1],
+[1,1,1,1,1,1,1,1,1,1],
+[0,1,1,1,1,1,1,1,1,0],
+[0,0,1,1,1,1,1,1,0,0],
+[0,0,0,1,1,1,1,0,0,0],
+[0,0,0,0,1,1,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0]];
+const N=10;
+let mode='fill',startT=0,timerId=null,done=false;
+const grid=document.getElementById('grid');
+function clues(line){const r=[];let c=0;for(const v of line){if(v){c++;}else{if(c){r.push(c);c=0;}}}if(c)r.push(c);return r.length?r:[0];}
+function newGame(){
+  document.getElementById('win').style.display='none';done=false;
+  grid.innerHTML='';
+  const colClues=[],maxC=0;
+  for(let c=0;c<N;c++){const cl=clues(SOL.map(r=>r[c]));colClues.push(cl);}
+  const rowClues=SOL.map(clues);
+  const maxR=Math.max(...colClues.map(c=>c.length)),maxK=Math.max(...rowClues.map(r=>r.length));
+  const hr=document.createElement('tr');
+  hr.appendChild(document.createElement('td')).className='clue';
+  for(let c=0;c<N;c++){const td=document.createElement('td');td.className='clue';
+    td.innerHTML=colClues[c].map(x=>x||'').join('<br>');hr.appendChild(td);}
+  grid.appendChild(hr);
+  for(let r=0;r<N;r++){
+    const tr=document.createElement('tr');
+    const kh=document.createElement('td');kh.className='clue';kh.textContent=rowClues[r].join(' ');tr.appendChild(kh);
+    for(let c=0;c<N;c++){
+      const td=document.createElement('td');td.dataset.r=r;td.dataset.c=c;
+      td.onclick=()=>paint(td);
+      tr.appendChild(td);
+    }
+    grid.appendChild(tr);
+  }
+  startT=Date.now();clearInterval(timerId);
+  timerId=setInterval(()=>{const s=Math.floor((Date.now()-startT)/1000);
+    document.getElementById('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');},500);
+}
+function paint(td){
+  if(done)return;
+  if(mode==='fill'){td.classList.remove('mark');td.textContent='';td.classList.toggle('fill');}
+  else{td.classList.remove('fill');if(td.classList.contains('mark')){td.classList.remove('mark');td.textContent='';}else{td.classList.add('mark');td.textContent='×';}}
+  check();
+}
+function check(){
+  for(let r=0;r<N;r++)for(let c=0;c<N;c++){
+    const td=grid.rows[r+1].cells[c+1];
+    const filled=td.classList.contains('fill');
+    if(!!SOL[r][c]!==filled)return;
+  }
+  done=true;clearInterval(timerId);
+  document.getElementById('winInfo').textContent='用时 '+document.getElementById('timer').textContent;
+  setTimeout(()=>document.getElementById('win').style.display='flex',400);
+}
+document.getElementById('modeBtn').onclick=e=>{mode=mode==='fill'?'mark':'fill';e.target.textContent=mode==='fill'?'✏️ 填格':'❌ 标记';};
+document.getElementById('newBtn').onclick=newGame;
+newGame();
+</script>
+</body>
+</html>

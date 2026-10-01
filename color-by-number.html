@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>数字涂色 Color by Number · demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#f6f1e7;color:#3a3226;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+header{width:100%;max-width:640px;padding:14px 16px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:18px}.spacer{flex:1}
+.pill{background:#fff;border:1px solid #d8cdb4;border-radius:999px;padding:6px 14px;font-size:14px}
+#art{width:min(600px,94vw);background:#fff;border:2px solid #d8cdb4;border-radius:12px;margin-top:8px}
+.region{cursor:pointer;stroke:#3a3226;stroke-width:2;transition:fill .3s}
+.region.shake{animation:shk .35s}
+@keyframes shk{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.num{font-size:15px;font-weight:700;fill:#3a3226;pointer-events:none;text-anchor:middle}
+#palette{display:flex;gap:8px;padding:14px 16px;flex-wrap:wrap;justify-content:center;max-width:640px}
+.sw{width:52px;height:52px;border-radius:12px;border:3px solid transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5)}
+.sw.on{border-color:#3a3226;transform:scale(1.1)}
+#win{position:fixed;inset:0;background:rgba(58,50,38,.85);display:none;align-items:center;justify-content:center;z-index:20}
+#win .box{background:#fffdf6;border-radius:16px;padding:36px 48px;text-align:center}
+#win button{background:#c98a2f;color:#fff;border:none;border-radius:999px;padding:10px 30px;font-size:16px;cursor:pointer;margin-top:14px}
+footer{font-size:11px;color:#9a8c6f;padding:0 16px 18px;text-align:center;max-width:640px}
+</style>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+</head>
+<body>
+<header>
+<div><h1>🎨 数字涂色</h1></div><div class="spacer"></div>
+<div class="pill">✅ <span id="done">0</span>/8</div>
+<div class="pill">⏱ <span id="timer">00:00</span></div>
+</header>
+<svg id="art" viewBox="0 0 480 360">
+<rect class="region" data-n="1" x="0" y="0" width="480" height="360" fill="#ffffff"/>
+<circle class="region" data-n="2" cx="400" cy="60" r="38" fill="#ffffff"/>
+<polygon class="region" data-n="3" points="0,360 140,150 280,360" fill="#ffffff"/>
+<polygon class="region" data-n="4" points="200,360 340,180 480,360" fill="#ffffff"/>
+<rect class="region" data-n="5" x="60" y="230" width="110" height="90" fill="#ffffff"/>
+<polygon class="region" data-n="6" points="40,235 115,175 190,235" fill="#ffffff"/>
+<rect class="region" data-n="7" x="95" y="275" width="40" height="45" fill="#ffffff"/>
+<circle class="region" data-n="8" cx="330" cy="300" r="30" fill="#ffffff"/>
+<rect class="region" data-n="5" x="322" y="318" width="16" height="30" fill="#ffffff"/>
+<text class="num" x="240" y="40">1</text><text class="num" x="400" y="66">2</text>
+<text class="num" x="140" y="300">3</text><text class="num" x="345" y="300">4</text>
+<text class="num" x="115" y="255">5</text><text class="num" x="115" y="222">6</text>
+<text class="num" x="115" y="300">7</text><text class="num" x="330" y="272">8</text>
+</svg>
+<div id="palette"></div>
+<div id="win"><div class="box"><h2>🎉 涂色完成！</h2><p id="winInfo"></p><button onclick="newGame()">再来一张</button></div></div>
+<footer>管线：AI 出线稿 → 分割分区编号 → 按号填色。demo 为手绘 SVG 占位，正式版走 AI 线稿管线。</footer>
+<script>
+const COLORS={1:'#8ecdf0',2:'#ffd34d',3:'#7fae6e',4:'#5d8a52',5:'#e8d8b0',6:'#c0392b',7:'#6e4a1f',8:'#3d8b37'};
+const NAMES={1:'天空',2:'太阳',3:'远山',4:'近山',5:'房子',6:'屋顶',7:'门',8:'树'};
+let sel=1,filled=0,startT=0,timerId=null;
+const pal=document.getElementById('palette');
+function newGame(){
+  document.getElementById('win').style.display='none';filled=0;sel=1;
+  document.getElementById('done').textContent='0';
+  pal.innerHTML='';
+  document.querySelectorAll('.region').forEach(r=>{r.setAttribute('fill','#ffffff');r.dataset.ok='';});
+  document.querySelectorAll('.num').forEach(t=>t.style.display='');
+  Object.keys(COLORS).forEach(n=>{
+    const d=document.createElement('div');d.className='sw'+(n==1?' on':'');
+    d.style.background=COLORS[n];d.textContent=n;d.title=NAMES[n];
+    d.onclick=()=>{sel=+n;document.querySelectorAll('.sw').forEach(x=>x.classList.remove('on'));d.classList.add('on');};
+    pal.appendChild(d);
+  });
+  startT=Date.now();clearInterval(timerId);
+  timerId=setInterval(()=>{const s=Math.floor((Date.now()-startT)/1000);
+    document.getElementById('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');},500);
+}
+document.querySelectorAll('.region').forEach(r=>{
+  r.addEventListener('click',()=>{
+    if(r.dataset.ok)return;
+    if(+r.dataset.n===sel){
+      r.setAttribute('fill',COLORS[sel]);r.dataset.ok='1';filled++;
+      document.getElementById('done').textContent=filled;
+      document.querySelectorAll('.num').forEach(t=>{});
+      if(filled>=8){clearInterval(timerId);
+        document.querySelectorAll('.num').forEach(t=>t.style.display='none');
+        setTimeout(()=>{document.getElementById('winInfo').textContent='用时 '+document.getElementById('timer').textContent;
+          document.getElementById('win').style.display='flex';},400);}
+    }else{r.classList.remove('shake');void r.getBoundingClientRect();r.classList.add('shake');}
+  });
+});
+newGame();
+</script>
+</body>
+</html>

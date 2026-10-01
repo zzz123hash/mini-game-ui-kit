@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>记忆翻牌 Memory Flip · demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:#10202b;color:#eaf4f8;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+header{width:100%;max-width:640px;padding:14px 16px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font-size:18px}.pill{background:#1b3242;border:1px solid #2e4f66;border-radius:999px;padding:6px 14px;font-size:14px}
+.spacer{flex:1}
+.diff button{background:#1b3242;color:#eaf4f8;border:1px solid #2e4f66;border-radius:8px;padding:8px 14px;font-size:14px;cursor:pointer}
+.diff button.on{background:#2f7fa8;border-color:#2f7fa8}
+#newBtn{background:#2f7fa8;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;cursor:pointer}
+#board{display:grid;gap:10px;padding:14px 16px;width:100%;max-width:640px}
+.card{aspect-ratio:1;perspective:600px;cursor:pointer}
+.inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .45s}
+.card.flip .inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:12px;backface-visibility:hidden;font-size:40px}
+.front{background:linear-gradient(135deg,#23465e,#16293a);border:1px solid #2e4f66}
+.front::after{content:"?";color:#4d6f88;font-size:34px;font-weight:700}
+.back{background:#f2f7fa;transform:rotateY(180deg)}
+.card.done{pointer-events:none}
+.card.done .back{box-shadow:0 0 14px #ffd34d;background:#fffbe8}
+#win{position:fixed;inset:0;background:rgba(6,12,17,.85);display:none;align-items:center;justify-content:center;z-index:20}
+#win .box{background:#16293a;border:1px solid #2f7fa8;border-radius:16px;padding:36px 48px;text-align:center}
+#win button{background:#2f7fa8;color:#fff;border:none;border-radius:999px;padding:10px 30px;font-size:16px;cursor:pointer;margin-top:14px}
+footer{font-size:11px;color:#5b7a90;padding:0 16px 18px;text-align:center}
+</style>
+<script src="https://mcp.figma.com/mcp/html-to-design/capture.js" async></script>
+</head>
+<body>
+<header>
+<div><h1>🃏 记忆翻牌</h1></div><div class="spacer"></div>
+<div class="pill">👣 <span id="moves">0</span></div>
+<div class="pill">⏱ <span id="timer">00:00</span></div>
+<div class="pill">🏆 <span id="best">—</span></div>
+</header>
+<header>
+<div class="diff"><button id="d4" class="on">4×4</button> <button id="d6">6×6</button></div>
+<div class="spacer"></div><button id="newBtn">↻ 重开</button>
+</header>
+<div id="board"></div>
+<div id="win"><div class="box"><h2>🎉 全部配对！</h2><p id="winInfo"></p><button onclick="newGame()">再来一局</button></div></div>
+<footer>demo：图案暂用 emoji 占位，正式版走"AI 一次出一套 18 张主题图案"管线。</footer>
+<script>
+const EMOJI=["🍎","🚀","🐱","🌙","⚓","🎈","🍩","⭐","🐼","🍇","🎧","🌵","🐝","🎯","🍕","🦄","🐙","🚲"];
+let size=4,first=null,lock=false,moves=0,pairs=0,startT=0,timerId=null;
+const board=document.getElementById('board');
+function bestKey(){return 'mf-best-'+size;}
+function showBest(){const b=localStorage.getItem(bestKey());document.getElementById('best').textContent=b?b+'步':'—';}
+function newGame(){
+  document.getElementById('win').style.display='none';
+  const n=size*size/2, icons=EMOJI.slice(0,n);
+  const deck=[...icons,...icons].sort(()=>Math.random()-.5);
+  board.style.gridTemplateColumns=`repeat(${size},1fr)`;
+  board.innerHTML='';first=null;lock=false;moves=0;pairs=0;
+  document.getElementById('moves').textContent='0';
+  deck.forEach(e=>{
+    const c=document.createElement('div');c.className='card';c.dataset.e=e;
+    c.innerHTML=`<div class="inner"><div class="face front"></div><div class="face back">${e}</div></div>`;
+    c.onclick=()=>flip(c);board.appendChild(c);
+  });
+  startT=Date.now();clearInterval(timerId);
+  timerId=setInterval(()=>{const s=Math.floor((Date.now()-startT)/1000);
+    document.getElementById('timer').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');},500);
+  showBest();
+}
+function flip(c){
+  if(lock||c.classList.contains('flip'))return;
+  c.classList.add('flip');
+  if(!first){first=c;return;}
+  moves++;document.getElementById('moves').textContent=moves;
+  if(first.dataset.e===c.dataset.e){
+    first.classList.add('done');c.classList.add('done');first=null;pairs++;
+    if(pairs===size*size/2){
+      clearInterval(timerId);
+      const b=localStorage.getItem(bestKey());
+      if(!b||moves<+b)localStorage.setItem(bestKey(),moves);
+      setTimeout(()=>{document.getElementById('winInfo').textContent=`${size}×${size} · ${moves} 步 · ${document.getElementById('timer').textContent}`;
+        document.getElementById('win').style.display='flex';showBest();},500);
+    }
+  }else{
+    lock=true;const a=first;first=null;
+    setTimeout(()=>{a.classList.remove('flip');c.classList.remove('flip');lock=false;},700);
+  }
+}
+document.getElementById('d4').onclick=()=>{size=4;document.getElementById('d4').classList.add('on');document.getElementById('d6').classList.remove('on');newGame();};
+document.getElementById('d6').onclick=()=>{size=6;document.getElementById('d6').classList.add('on');document.getElementById('d4').classList.remove('on');newGame();};
+document.getElementById('newBtn').onclick=newGame;
+newGame();
+</script>
+</body>
+</html>
